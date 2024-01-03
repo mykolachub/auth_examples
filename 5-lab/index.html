@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  </head>
+
+  <body>
+    <main id="main-holder">
+      <a href="/logout" id="logout">Logout</a>
+
+      <div id="login_wrapper">
+        <h1 id="login-header">Login</h1>
+        <p
+          id="login-header-switch"
+          style="text-decoration: underline; cursor: pointer"
+        >
+          sign up
+        </p>
+      </div>
+
+      <div id="signup_wrapper" hidden>
+        <h1 id="signup-header">Sign Up</h1>
+        <p
+          id="signup-header-switch"
+          style="text-decoration: underline; cursor: pointer"
+        >
+          login
+        </p>
+      </div>
+
+      <div id="login-error-msg-holder">
+        <p id="login-error-msg">
+          Invalid username
+          <span id="error-msg-second-line">and/or password</span>
+        </p>
+      </div>
+
+      <form id="login-form" action="/api/login" method="post">
+        <input
+          type="text"
+          name="login"
+          id="username-field"
+          class="login-form-field"
+          placeholder="Username"
+        />
+        <input
+          type="password"
+          name="password"
+          id="password-field"
+          class="login-form-field"
+          placeholder="Password"
+        />
+        <input type="submit" value="Login" id="login-form-submit" />
+        <input type="submit" value="Signup" id="signup-form-submit" hidden />
+      </form>
+    </main>
+  </body>
+
+  <style>
+    html {
+      height: 100%;
+    }
+
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+      background-color: #3a3a3a;
+    }
+
+    #logout {
+      opacity: 0;
+    }
+
+    #main-holder {
+      width: 50%;
+      height: 70%;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+      background-color: white;
+      border-radius: 7px;
+      box-shadow: 0px 0px 5px 2px black;
+    }
+
+    #login-error-msg-holder {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+    }
+
+    #login-error-msg {
+      width: 23%;
+      text-align: center;
+      margin: 0;
+      padding: 5px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #8a0000;
+      border: 1px solid #8a0000;
+      background-color: #e58f8f;
+      opacity: 0;
+    }
+
+    #error-msg-second-line {
+      display: block;
+    }
+
+    #login-form {
+      align-self: flex-start;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+    }
+
+    .login-form-field::placeholder {
+      color: #3a3a3a;
+    }
+
+    .login-form-field {
+      border: none;
+      border-bottom: 1px solid #3a3a3a;
+      margin-bottom: 10px;
+      border-radius: 3px;
+      outline: none;
+      padding: 0px 0px 5px 5px;
+    }
+
+    #login-form-submit {
+      width: 100%;
+      padding: 7px;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      font-weight: bold;
+      background-color: #3a3a3a;
+      cursor: pointer;
+      outline: none;
+    }
+  </style>
+
+  <script>
+    const accessToken = sessionStorage.getItem('accessToken');
+    const refreshToken = sessionStorage.getItem('refreshToken');
+    const tokenExpiry = sessionStorage.getItem('tokenExpiry'); // 86400
+
+    console.log(accessToken);
+
+    const REFRESH_TOKEN = 600; // 60s
+
+    const timestamp = Math.floor(new Date().getTime() / 1000);
+    if (refreshToken && timestamp > parseInt(tokenExpiry)) {
+      console.log('refreshing token');
+      axios({
+        method: 'post',
+        url: '/api/refresh',
+        headers: {
+          Authorization: refreshToken,
+        },
+      })
+        .then((response) => {
+          const { access_token, expires_in } = response.data;
+          sessionStorage.setItem('accessToken', access_token);
+          sessionStorage.setItem(
+            'tokenExpiry',
+            Math.floor(
+              new Date(Date.now() + REFRESH_TOKEN * 1000).getTime() / 1000
+            )
+          );
+          location.reload();
+        })
+        .catch((response) => {
+          loginErrorMsg.style.opacity = 1;
+        });
+    }
+
+    const loginForm = document.getElementById('login-form');
+    const loginButton = document.getElementById('login-form-submit');
+    const loginErrorMsg = document.getElementById('login-error-msg');
+    const logoutLink = document.getElementById('logout');
+
+    const LoginSwitch = document.getElementById('login-header-switch');
+    const LoginWrapper = document.getElementById('login_wrapper');
+    const LoginButton = document.getElementById('login-form-submit');
+
+    const SignupSwitch = document.getElementById('signup-header-switch');
+    const SignupWrapper = document.getElementById('signup_wrapper');
+    const SignupButton = document.getElementById('signup-form-submit');
+
+    LoginSwitch.addEventListener('click', () => {
+      LoginWrapper.hidden = true;
+      SignupWrapper.hidden = false;
+      LoginButton.hidden = true;
+      SignupButton.hidden = false;
+    });
+
+    SignupSwitch.addEventListener('click', () => {
+      SignupWrapper.hidden = true;
+      LoginWrapper.hidden = false;
+      LoginButton.hidden = false;
+      SignupButton.hidden = true;
+    });
+
+    if (accessToken) {
+      axios
+        .get('/api/me', {
+          headers: {
+            Authorization: 'Bearer ' + accessToken,
+          },
+        })
+        .then((response) => {
+          const { name: username } = response.data;
+
+          if (username) {
+            const mainHolder = document.getElementById('main-holder');
+            const loginHeader = document.getElementById('login-header');
+            const signUpHeader = document.getElementById('signup-header');
+
+            loginForm.remove();
+            loginErrorMsg.remove();
+            loginHeader.remove();
+            signUpHeader.remove();
+
+            mainHolder.append(`Hello ${username}`);
+            logoutLink.style.opacity = 1;
+          }
+        });
+    }
+
+    logoutLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('tokenExpiry');
+      location.reload();
+    });
+
+    LoginButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      const login = loginForm.login.value;
+      const password = loginForm.password.value;
+
+      axios({
+        method: 'post',
+        url: '/api/login',
+        data: {
+          login,
+          password,
+        },
+      })
+        .then((response) => {
+          // storing access and refresh token
+          const { access_token, refresh_token, expires_in } = response.data;
+          sessionStorage.setItem('accessToken', access_token);
+          sessionStorage.setItem('refreshToken', refresh_token);
+          // sessionStorage.setItem('expiresIn', JSON.stringify(expires_in));
+          sessionStorage.setItem(
+            'tokenExpiry',
+            Math.floor(
+              new Date(Date.now() + REFRESH_TOKEN * 1000).getTime() / 1000
+            )
+          );
+
+          location.reload();
+        })
+        .catch((error) => {
+          loginErrorMsg.style.opacity = 1;
+        });
+    });
+
+    SignupButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      const login = loginForm.login.value;
+      const password = loginForm.password.value;
+      axios({
+        method: 'post',
+        url: '/api/signup',
+        data: {
+          login,
+          password,
+        },
+      })
+        .then((response) => {
+          // storing access and refresh token
+          const { access_token, refresh_token, expires_in } = response.data;
+          sessionStorage.setItem('accessToken', access_token);
+          sessionStorage.setItem('refreshToken', refresh_token);
+          // sessionStorage.setItem('expiresIn', JSON.stringify(expires_in));
+          sessionStorage.setItem(
+            'tokenExpiry',
+            Math.floor(
+              new Date(Date.now() + REFRESH_TOKEN * 1000).getTime() / 1000
+            )
+          );
+
+          location.reload();
+        })
+        .catch((error) => {
+          loginErrorMsg.style.opacity = 1;
+        });
+    });
+  </script>
+</html>
