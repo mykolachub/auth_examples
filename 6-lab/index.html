@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  </head>
+
+  <body>
+    <main id="main-holder">
+      <a href="/logout" id="logout">Logout</a>
+
+      <div id="login_wrapper">
+        <h1 id="login-header">Sign Up</h1>
+      </div>
+      <input type="submit" value="Sign Up" id="signup-form-submit" />
+      </form>
+    </main>
+  </body>
+
+  <style>
+    html {
+      height: 100%;
+    }
+
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+      background-color: #3a3a3a;
+    }
+
+    #logout {
+      opacity: 0;
+    }
+
+    #main-holder {
+      width: 50%;
+      height: 70%;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+      background-color: white;
+      border-radius: 7px;
+      box-shadow: 0px 0px 5px 2px black;
+    }
+
+    #login-error-msg-holder {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+    }
+
+    #login-error-msg {
+      width: 23%;
+      text-align: center;
+      margin: 0;
+      padding: 5px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #8a0000;
+      border: 1px solid #8a0000;
+      background-color: #e58f8f;
+      opacity: 0;
+    }
+
+    #error-msg-second-line {
+      display: block;
+    }
+
+    #login-form {
+      align-self: flex-start;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+    }
+
+    .login-form-field::placeholder {
+      color: #3a3a3a;
+    }
+
+    .login-form-field {
+      border: none;
+      border-bottom: 1px solid #3a3a3a;
+      margin-bottom: 10px;
+      border-radius: 3px;
+      outline: none;
+      padding: 0px 0px 5px 5px;
+    }
+
+    #login-form-submit {
+      width: 100%;
+      padding: 7px;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      font-weight: bold;
+      background-color: #3a3a3a;
+      cursor: pointer;
+      outline: none;
+    }
+  </style>
+
+  <script>
+    const accessToken = sessionStorage.getItem('accessToken');
+    const refreshToken = sessionStorage.getItem('refreshToken');
+    const tokenExpiry = sessionStorage.getItem('tokenExpiry'); // 86400
+
+    console.log(accessToken);
+
+    const REFRESH_TOKEN = 600; // 60s
+
+    const params = new URL(document.location).searchParams;
+    const code = params.get('code');
+    console.log(code);
+    if (code) {
+      // send request to server /api/token
+      axios({
+        method: 'post',
+        url: '/api/token',
+        data: {
+          code
+        },
+      })
+        .then((response) => {
+          console.log('/api/token res: ', response.data);
+          const { access_token, refresh_token, expires_in } = response.data;
+          sessionStorage.setItem('accessToken', access_token);
+          sessionStorage.setItem('refreshToken', refresh_token);
+
+          window.history.replaceState({}, document.title, "/");
+          location.reload();
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    }
+
+    const timestamp = Math.floor(new Date().getTime() / 1000);
+    if (refreshToken && timestamp > parseInt(tokenExpiry)) {
+      console.log('refreshing token');
+      axios({
+        method: 'post',
+        url: '/api/refresh',
+        headers: {
+          Authorization: refreshToken,
+        },
+      })
+        .then((response) => {
+          const { access_token, expires_in } = response.data;
+          sessionStorage.setItem('accessToken', access_token);
+          sessionStorage.setItem(
+            'tokenExpiry',
+            Math.floor(
+              new Date(Date.now() + REFRESH_TOKEN * 1000).getTime() / 1000
+            )
+          );
+          
+          location.reload();
+        })
+        .catch((response) => {
+          loginErrorMsg.style.opacity = 1;
+        });
+    }
+
+    const logoutLink = document.getElementById('logout');
+    const SignupButton = document.getElementById('signup-form-submit');
+
+    if (accessToken) {
+      axios
+        .get('/api/me', {
+          headers: {
+            Authorization: 'Bearer ' + accessToken,
+          },
+        })
+        .then((response) => {
+          const { name: username } = response.data;
+
+          if (username) {
+            const mainHolder = document.getElementById('main-holder');
+            const loginHeader = document.getElementById('login-header');
+
+            loginHeader.remove();
+            SignupButton.remove();
+            mainHolder.append(`Hello ${username}`);
+            logoutLink.style.opacity = 1;
+          }
+        });
+    }
+
+    logoutLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('tokenExpiry');
+      window.history.replaceState({}, document.title, "/");
+          location.reload();
+    });
+
+    SignupButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.open('https://dev-x3jla0dkhyn1gnbt.us.auth0.com/authorize?client_id=7XXph6AKMGAKn9ABZYFy294N2SDhF1BS&redirect_uri=http://localhost:3000&response_type=code&response_mode=query&scope=openid+offline_access+profile', '_self');
+    });
+  </script>
+</html>
